@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <title>Fairytale Survivors</title>
+<script>window.__GP_EXPECTED=true;window.__FORCE_RU=true;</script>
 </head>
 <body>
 
@@ -418,7 +419,7 @@ const EN={
 // ================= DOM =================
 const $=id=>document.getElementById(id);
 const cv=$('cv'),ctx=cv.getContext('2d');
-let lang=(navigator.language||'ru').slice(0,2);lang=['ru','be','kk','uk','uz'].includes(lang)?'ru':'en';
+let lang=(navigator.language||'ru').slice(0,2);lang=window.__FORCE_RU||['ru','be','kk','uk','uz'].includes(lang)?'ru':'en';
 const t=k=>TXT[lang][k];
 // locations: unlocked one after another by beating the boss
 const LOCS=[
@@ -1979,6 +1980,51 @@ setTimeout(musicTick,500);
   clearTimeout(giftFallback);if(!bootDone){bootDone=true;if(state==='menu')scheduleGift(1200);}
 })();
 
+})();
+</script>
+<script>
+window.__FORCE_RU=true;
+(function(){
+  var L={};function emit(n){(L[n]||[]).forEach(function(f){try{f();}catch(e){}});}
+  function make(sdk){
+    var A=sdk.ads||{},S=sdk.storage;
+    var sup=function(x){return !!(x&&x.isSupported!==false);};
+    return {
+      language:'ru',
+      ads:{
+        on:function(n,f){(L[n]=L[n]||[]).push(f);},
+        get isRewardedAvailable(){return sup(A.rewarded);},
+        get isFullscreenAvailable(){return sup(A.fullscreen);},
+        isPreloaderAvailable:false,isStickyAvailable:false,
+        showRewardedVideo:function(){return Promise.resolve(A.rewarded.canShow()).then(function(ok){
+            if(!ok)return false;emit('start');
+            return Promise.resolve(A.rewarded.show()).then(function(r){emit('close');return !!(r&&r.reward);},function(){emit('close');return false;});
+          },function(){return false;});},
+        showFullscreen:function(){return Promise.resolve(A.fullscreen.canShow()).then(function(ok){
+            if(!ok)return false;emit('start');
+            return Promise.resolve(A.fullscreen.show()).then(function(){emit('close');return true;},function(){emit('close');return false;});
+          },function(){return false;});},
+        showPreloader:function(){return Promise.resolve(false);}
+      },
+      player:{ready:Promise.resolve(),get:function(k){try{return S.get(k);}catch(e){return null;}},set:function(k,v){try{S.set(k,v);}catch(e){}},
+        sync:function(){try{return Promise.resolve(S.flush());}catch(e){return Promise.resolve();}}},
+      sounds:{isMuted:false,on:function(){},mute:function(){},unmute:function(){}},
+      payments:{isAvailable:false,products:[],has:function(){return false;},purchase:function(){return Promise.reject();}},
+      leaderboard:{open:function(){}},
+      platform:{type:'PIKABU',isBackendAllowed:false},
+      gameStart:function(){try{sdk.gameStarted();}catch(e){}},
+      gameplayStart:function(){},gameplayStop:function(){}
+    };
+  }
+  function ready(gp){window.__gp=gp;if(window.__gpResolve)window.__gpResolve(gp);}
+  var s=document.createElement('script');s.async=true;s.src='https://games.pikabu.ru/sdk/sdk.js';
+  s.onload=function(){try{Promise.resolve(window.PkbSDK.init()).then(function(sdk){
+      // loading-screen ad (mobile only, must come before gameStarted)
+      var pre=sdk.ads&&sdk.ads.preloader;
+      Promise.resolve(pre&&pre.isSupported!==false?pre.canShow():false).then(function(ok){return ok?pre.show():null;}).catch(function(){})
+        .then(function(){ready(make(sdk));});
+    }).catch(function(){});}catch(e){}};
+  document.head.appendChild(s);
 })();
 </script>
 </body>
