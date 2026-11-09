@@ -1986,7 +1986,7 @@ setTimeout(musicTick,500);
 window.__FORCE_RU=true;
 (function(){
   var L={};function emit(n){(L[n]||[]).forEach(function(f){try{f();}catch(e){}});}
-  function make(sdk){
+  function make(sdk,pay){
     var A=sdk.ads||{},S=sdk.storage;
     var sup=function(x){return !!(x&&x.isSupported!==false);};
     return {
@@ -2009,7 +2009,7 @@ window.__FORCE_RU=true;
       player:{ready:Promise.resolve(),get:function(k){try{return S.get(k);}catch(e){return null;}},set:function(k,v){try{S.set(k,v);}catch(e){}},
         sync:function(){try{return Promise.resolve(S.flush());}catch(e){return Promise.resolve();}}},
       sounds:{isMuted:false,on:function(){},mute:function(){},unmute:function(){}},
-      payments:{isAvailable:false,products:[],has:function(){return false;},purchase:function(){return Promise.reject();}},
+      payments:pay,
       leaderboard:{open:function(){}},
       platform:{type:'PIKABU',isBackendAllowed:false},
       gameStart:function(){try{sdk.gameStarted();}catch(e){}},
@@ -2017,12 +2017,32 @@ window.__FORCE_RU=true;
     };
   }
   function ready(gp){window.__gp=gp;if(window.__gpResolve)window.__gpResolve(gp);}
+  // purchases: every product is permanent; each purchase is confirmed by our server (it checks the signature with the game's secret key)
+  var VERIFY='https://functions.yandexcloud.net/d4ek5krq1hev1t9fthbl';
+  function verify(p){return Promise.resolve(p.getSignedData()).then(function(sd){
+      return fetch(VERIFY,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({signedData:sd})});})
+    .then(function(r){return r.json();}).then(function(j){return !!(j&&j.ok&&j.productId===p.productId);}).catch(function(){return false;});}
+  function store(sdk){
+    var off={isAvailable:false,products:[],has:function(){return false;},purchase:function(){return Promise.reject();}};
+    var st=sdk.store;if(!VERIFY||VERIFY.indexOf('http')!==0||!st||!window.fetch)return Promise.resolve(off);
+    var owned={},pay={isAvailable:false,products:[],has:function(t){return !!owned[t];},
+      purchase:function(o){return Promise.resolve(st.purchase({productId:o.tag})).then(function(r){
+          if(!r||!r.success)throw new Error(r&&r.reason||'fail');
+          return verify(r.purchase).then(function(ok){if(!ok)throw new Error('verify');owned[o.tag]=true;return true;});});}};
+    var work=Promise.resolve(st.getProducts()).then(function(list){
+        pay.products=(list||[]).map(function(x){return {tag:x.id,price:Math.round(x.price/100),currencySymbol:'₽'};});
+        return Promise.resolve(st.getPurchases()).then(function(ps){
+          return Promise.all((ps||[]).map(function(p){return verify(p).then(function(ok){if(ok)owned[p.productId]=true;});}));},function(){});
+      }).then(function(){pay.isAvailable=pay.products.length>0;return pay;},function(){return off;});
+    // never hold the game back for long because of the store
+    return Promise.race([work,new Promise(function(res){setTimeout(function(){res(pay);},6000);})]);
+  }
   var s=document.createElement('script');s.async=true;s.src='https://games.pikabu.ru/sdk/sdk.js';
   s.onload=function(){try{Promise.resolve(window.PkbSDK.init()).then(function(sdk){
       // loading-screen ad (mobile only, must come before gameStarted)
       var pre=sdk.ads&&sdk.ads.preloader;
       Promise.resolve(pre&&pre.isSupported!==false?pre.canShow():false).then(function(ok){return ok?pre.show():null;}).catch(function(){})
-        .then(function(){ready(make(sdk));});
+        .then(function(){return store(sdk);}).then(function(pay){ready(make(sdk,pay));});
     }).catch(function(){});}catch(e){}};
   document.head.appendChild(s);
 })();
