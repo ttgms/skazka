@@ -2020,10 +2020,11 @@ window.__FORCE_RU=true;
   }
   function ready(gp){window.__gp=gp;if(window.__gpResolve)window.__gpResolve(gp);}
   // purchases: every product is permanent; each purchase is confirmed by our server (it checks the signature with the game's secret key)
+  function slog(){var a=[].slice.call(arguments).join(' ');try{console.log(a);parent.postMessage({skStore:a},'*');}catch(e){}}
   var VERIFY='https://functions.yandexcloud.net/d4ek5krq1hev1t9fthbl';
   function verify(p){return Promise.resolve(p.getSignedData()).then(function(sd){
       return fetch(VERIFY,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({signedData:sd})});})
-    .then(function(r){return r.json();}).then(function(j){return !!(j&&j.ok&&j.productId===p.productId);}).catch(function(){return false;});}
+    .then(function(r){return r.json();}).then(function(j){slog('[store] verify-resp',JSON.stringify(j));return !!(j&&j.ok&&j.productId===p.productId);}).catch(function(e){slog('[store] verify-err',e&&e.message);return false;});}
   function store(sdk){
     var off={isAvailable:false,products:[],has:function(){return false;},purchase:function(){return Promise.reject();}};
     var st=sdk.store;console.log('[store] sdk.store',!!st);if(!VERIFY||VERIFY.indexOf('http')!==0||!st||!window.fetch)return Promise.resolve(off);
