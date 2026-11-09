@@ -2027,17 +2027,17 @@ window.__FORCE_RU=true;
     .then(function(r){return r.json();}).then(function(j){slog('[store] verify-resp',JSON.stringify(j));return !!(j&&j.ok&&j.productId===p.productId);}).catch(function(e){slog('[store] verify-err',e&&e.message);return false;});}
   function store(sdk){
     var off={isAvailable:false,products:[],has:function(){return false;},purchase:function(){return Promise.reject();}};
-    var st=sdk.store;console.log('[store] sdk.store',!!st);if(!VERIFY||VERIFY.indexOf('http')!==0||!st||!window.fetch)return Promise.resolve(off);
+    var st=sdk.store;slog('[store] sdk.store',!!st);if(!VERIFY||VERIFY.indexOf('http')!==0||!st||!window.fetch)return Promise.resolve(off);
     var owned={},pay={isAvailable:false,products:[],has:function(t){return !!owned[t];},
       purchase:function(o){return Promise.resolve(st.purchase({productId:o.tag})).then(function(r){
-          console.log('[store] purchase',o.tag,r&&r.success,r&&r.reason);if(!r||!r.success)throw new Error(r&&r.reason||'fail');
-          return verify(r.purchase).then(function(ok){console.log('[store] verify',o.tag,ok);if(!ok)throw new Error('verify');owned[o.tag]=true;return true;});});}};
+          slog('[store] purchase',o.tag,r&&r.success,r&&r.reason);if(!r||!r.success)throw new Error(r&&r.reason||'fail');
+          return verify(r.purchase).then(function(ok){slog('[store] verify',o.tag,ok);if(!ok)throw new Error('verify');owned[o.tag]=true;return true;});});}};
     var work=Promise.resolve(st.getProducts()).then(function(list){
         pay.products=(list||[]).map(function(x){return {tag:x.id,price:Math.round(x.price/100),currencySymbol:'₽'};});
         return Promise.resolve(st.getPurchases()).then(function(ps){
           return Promise.all((ps||[]).map(function(p){return verify(p).then(function(ok){if(ok)owned[p.productId]=true;});}));},function(){});
-      }).then(function(){pay.isAvailable=pay.products.length>0;console.log('[store] products',pay.products.length,'owned',Object.keys(owned).join(','));
-        try{dispatchEvent(new Event('gp-store'));}catch(e){}return pay;},function(e){console.log('[store] error',e&&(e.message||e));return off;});
+      }).then(function(){pay.isAvailable=pay.products.length>0;slog('[store] products',pay.products.length,'owned',Object.keys(owned).join(','));
+        try{dispatchEvent(new Event('gp-store'));}catch(e){}return pay;},function(e){slog('[store] error',e&&(e.message||e));return off;});
     // never hold the game back for long because of the store
     return Promise.race([work,new Promise(function(res){setTimeout(function(){res(pay);},6000);})]);
   }
